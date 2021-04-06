@@ -6,7 +6,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+	"time"
 )
+
+var (
+	// TODO: Make it possible to disable.
+	sigTermReceived = false
+)
+
+// Print a log line every second once we receive a termination signal.
+func sigTermHeartbeater() {
+	for {
+		log.Println("Post-SIGTERM heartbeat")
+		time.Sleep(time.Second)
+	}
+}
 
 func printEnvironment() {
 	log.Println("---- ENVIRONMENT ----")
@@ -19,6 +34,14 @@ func printEnvironment() {
 func signalHandler(sigChan chan os.Signal) {
 	for s := range sigChan {
 		log.Println("Received signal ", s)
+
+		// Start sending heartbeat logs after termination signal is received
+		// so we can see how long it takes the task to be killed.
+		// No, this fake semaphore is not really safe.
+		if s == syscall.SIGTERM && !sigTermReceived {
+			sigTermReceived = true
+			go sigTermHeartbeater()
+		}
 	}
 }
 
